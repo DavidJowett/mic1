@@ -9,6 +9,19 @@ A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go wit
 * Microcode inspector
 * Microcode breakpoints
 
+## Usage
+
+The MIC-1 Emulator supports loading both binary and binary string microcode and memory files.
+
+* -mc file
+ * Loads the given binary microcode file
+* -mcs file
+ * Loads the given binary string microcode file
+* -m file
+ * Loads the given binary memory file
+* -ms file 
+ * Loads the given binary string memory file
+
 ## Screenshots
 
 ![Screenshot](img/main.png?raw=true)
