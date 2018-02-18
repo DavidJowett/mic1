@@ -11,7 +11,7 @@ A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go wit
 
 ## Screenshots
 
-![Screenshot](img/main.png)
+![Screenshot](img/main.png?raw=true)
 
 ## Key Bindings
 ### Global
