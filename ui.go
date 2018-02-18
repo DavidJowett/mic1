@@ -172,18 +172,18 @@ func (u *Ui) UpdateMicrocodeView(g *gocui.Gui) error {
 	_, maxY := v.Size()
         var br rune
         var cur rune
-	for i := 0; i < maxY && (i+u.MCPos) < 256; i++ {
+	for i := 0; u.Mic.MCC[i + u.MCPos] != nil && i < maxY && (i + u.MCPos) < 256; i++ {
                 if i+u.MCPos == int(mpc) {
                         cur = '>'
                 } else {
                         cur = ' '
                 }
-                if u.Mic.MCC[i+u.MCPos].BR {
+                if u.Mic.MCC[i + u.MCPos].BR {
                         br = '*'
                 } else {
                         br = ' '
                 }
-		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i+u.MCPos, u.MC[i+u.MCPos])
+		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i + u.MCPos, u.MC[i + u.MCPos])
 	}
 	return nil
 }
@@ -326,7 +326,7 @@ func (u *Ui) CycleView(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
-	u.SymPos += 1
+	u.SymPos++
 	if u.SymPos >= len(u.Mic.MemSymbols) {
 		u.SymPos = len(u.Mic.MemSymbols) - 1
 	}
@@ -335,7 +335,7 @@ func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) SymScrollUp(g *gocui.Gui, v *gocui.View) error {
-	u.SymPos -= 1
+	u.SymPos--
 	if u.SymPos < 0 {
 		u.SymPos = 0
 	}
@@ -362,7 +362,10 @@ func (u *Ui) MemScrollUp(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
-	u.MCPos += 1
+	u.MCPos++
+        if u.Mic.MCC[u.MCPos] == nil {
+                u.MCPos--
+        }
 	if u.MCPos > 255 {
 		u.MCPos = 255
 	}
@@ -371,7 +374,7 @@ func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) MicrocodeScrollUp(g *gocui.Gui, v *gocui.View) error {
-	u.MCPos -= 1
+	u.MCPos--
 	if u.MCPos < 0 {
 		u.MCPos = 0
 	}
@@ -411,7 +414,9 @@ func (u *Ui) MicrocodeToggleBreakPoint(g *gocui.Gui, v *gocui.View) error {
         defer u.Mic.RegistersLock.Unlock()
         _, mci := v.Cursor()
         mci += u.MCPos
-        u.Mic.MCC[mci].BR = !u.Mic.MCC[mci].BR
+        if u.Mic.MCC[mci] != nil {
+                u.Mic.MCC[mci].BR = !u.Mic.MCC[mci].BR
+        }
         return nil
 }
 
