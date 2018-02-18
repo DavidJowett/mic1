@@ -34,7 +34,7 @@ type instruction struct {
 	B    int8
 	A    int8
 	ADDR uint8
-        BR   bool
+	BR   bool
 }
 
 /* Unpacks an binary instruction into an instruction struct */

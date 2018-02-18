@@ -37,6 +37,7 @@ Key Combination | Description
 <kbd>s</kbd> | Steps the MIC-1 emulator forward one complete cycle
 <kbd>r</kbd> | Runs the MIC-1 emulator until a HALT is requested or a break point is hit
 <kbd>h</kbd> | Halts the MIC-1 emulator
+<kbd>l</kbd> | Resets the MIC-1 emulator. Stops execution, zeros memory and microcode, and reloads microcode and memory 
 
 ### Symbols Frame
 
@@ -65,7 +66,5 @@ Key Combination | Description
 <kbd>b</kbd> | Toggles breakpoint on that instruction
 
 ## Todo
-* Reset Key binding
-  * Reloads the given Microcode file, and Memory file
 * Better scrolling
-* Better colors?
+* Better colors

@@ -59,8 +59,8 @@ func LoadBinaryStringMCFile(fp string) ([]uint32, error) {
 	s := bufio.NewScanner(file)
 
 	for s.Scan() {
-                var tmp uint32
-                fmt.Sscanf(s.Text(),"%b", &tmp)
+		var tmp uint32
+		fmt.Sscanf(s.Text(), "%b", &tmp)
 		ret = append(ret, tmp)
 	}
 	if err := s.Err(); err != nil {
@@ -103,9 +103,9 @@ func LoadBinaryStringMemFile(fp string) ([]uint16, []Symbol, error) {
 	for s.Scan() {
 		line := s.Text()
 		if line[0] != '#' {
-                        var tmp uint16
-                        fmt.Sscanf(line, "%b", &tmp)
-                        ret = append(ret, tmp)
+			var tmp uint16
+			fmt.Sscanf(line, "%b", &tmp)
+			ret = append(ret, tmp)
 		} else {
 			line := line[1:]
 			ss := strings.Split(line, ":")

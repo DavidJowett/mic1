@@ -39,7 +39,11 @@ type Ui struct {
 	MCPos   int
 	VCycle  []*gocui.View
 	CView   int
-	MC      []string
+	/* human readable microcode */
+	MC []string
+	/* Microcode and memory reload functions */
+	MR  func(m *mic1) error
+	MCR func(m *mic1) error
 }
 
 func (u *Ui) Run() error {
@@ -67,14 +71,15 @@ func initGui(m *mic1) (*Ui, error) {
 		return nil, err
 	}
 
-        /* Translate all the binary microcode instructions to a human readable format */
-	for i, v := range u.Mic.MC {
-		ins := Unpack(v)
-		u.MC[i] = ins.ToString()
+	/* Translate all the binary microcode instructions to a human readable format */
+	for i, v := range u.Mic.MCC {
+		if v != nil {
+			u.MC[i] = v.ToString()
+		}
 	}
 	u.Gui.SetManagerFunc(u.Layout)
 
-        /* Keybindings */
+	/* Keybindings */
 	var keys []KeyBinding = []KeyBinding{
 		KeyBinding{"", gocui.KeyCtrlC, gocui.ModNone, quit},
 		KeyBinding{"", 'q', gocui.ModNone, quit},
@@ -83,6 +88,7 @@ func initGui(m *mic1) (*Ui, error) {
 		KeyBinding{"", 'h', gocui.ModNone, u.MicHalt},
 		KeyBinding{"", 'c', gocui.ModNone, u.CycleView},
 		KeyBinding{"", 'C', gocui.ModNone, u.ReverseCycleView},
+		KeyBinding{"", 'l', gocui.ModNone, u.MicReset},
 		KeyBinding{"symbols", 'j', gocui.ModNone, u.SymScrollDown},
 		KeyBinding{"symbols", 'k', gocui.ModNone, u.SymScrollUp},
 		KeyBinding{"symbols", 'g', gocui.ModNone, u.SymGoto},
@@ -96,7 +102,7 @@ func initGui(m *mic1) (*Ui, error) {
 		KeyBinding{"microcode", 'b', gocui.ModNone, u.MicrocodeToggleBreakPoint},
 	}
 
-        /* Setup keybindngs */
+	/* Setup keybindngs */
 	for _, k := range keys {
 		err = u.Gui.SetKeybinding(k.View, k.Key, k.Mod, k.Handler)
 		if err != nil {
@@ -187,20 +193,20 @@ func (u *Ui) UpdateMicrocodeView(g *gocui.Gui) error {
 	u.Mic.RegistersLock.Unlock()
 	v.Clear()
 	_, maxY := v.Size()
-        var br rune
-        var cur rune
-	for i := 0; u.Mic.MCC[i + u.MCPos] != nil && i < maxY && (i + u.MCPos) < 256; i++ {
-                if i+u.MCPos == int(mpc) {
-                        cur = '>'
-                } else {
-                        cur = ' '
-                }
-                if u.Mic.MCC[i + u.MCPos].BR {
-                        br = '*'
-                } else {
-                        br = ' '
-                }
-		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i + u.MCPos, u.MC[i + u.MCPos])
+	var br rune
+	var cur rune
+	for i := 0; u.Mic.MCC[i+u.MCPos] != nil && i < maxY && (i+u.MCPos) < 256; i++ {
+		if i+u.MCPos == int(mpc) {
+			cur = '>'
+		} else {
+			cur = ' '
+		}
+		if u.Mic.MCC[i+u.MCPos].BR {
+			br = '*'
+		} else {
+			br = ' '
+		}
+		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i+u.MCPos, u.MC[i+u.MCPos])
 	}
 	return nil
 }
@@ -325,6 +331,30 @@ func (u *Ui) MicHalt(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func (u *Ui) MicReset(g *gocui.Gui, v *gocui.View) error {
+	u.Mic.StateChange.L.Lock()
+	if u.Mic.State != HALT {
+		u.Mic.DesiredState = HALT
+		u.Mic.StateChange.Wait()
+	}
+	u.Mic.Reset()
+	u.Mic.ZeroMem()
+	u.Mic.ZeroMC()
+	u.MCR(u.Mic)
+	u.MR(u.Mic)
+	u.MC = make([]string, 256, 256)
+	/* Translate all the binary microcode instructions to a human readable format */
+	for i, v := range u.Mic.MCC {
+		if v != nil {
+			u.MC[i] = v.ToString()
+		}
+	}
+	u.Gui.Update(u.UpdateViews)
+	u.Mic.StateChange.L.Unlock()
+
+	return nil
+}
+
 func (u *Ui) MicWatcher() {
 	for {
 		u.Mic.StateChange.L.Lock()
@@ -344,13 +374,13 @@ func (u *Ui) CycleView(g *gocui.Gui, v *gocui.View) error {
 
 func (u *Ui) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
 	DefocusView(g, u.VCycle[u.CView])
-        u.CView--
-        if u.CView < 0 {
-                u.CView = len(u.VCycle) - 1
-        }
+	u.CView--
+	if u.CView < 0 {
+		u.CView = len(u.VCycle) - 1
+	}
 	FocusView(g, u.VCycle[u.CView])
 
-        return nil
+	return nil
 }
 
 func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
@@ -391,9 +421,9 @@ func (u *Ui) MemScrollUp(g *gocui.Gui, v *gocui.View) error {
 
 func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
 	u.MCPos++
-        if u.Mic.MCC[u.MCPos] == nil {
-                u.MCPos--
-        }
+	if u.Mic.MCC[u.MCPos] == nil {
+		u.MCPos--
+	}
 	if u.MCPos > 255 {
 		u.MCPos = 255
 	}
@@ -432,20 +462,19 @@ func (u *Ui) SymModeToggle(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-
 func (u *Ui) MicrocodeToggleBreakPoint(g *gocui.Gui, v *gocui.View) error {
 	v, err := g.View("microcode")
 	if err != nil {
 		return err
 	}
-        u.Mic.RegistersLock.Lock()
-        defer u.Mic.RegistersLock.Unlock()
-        _, mci := v.Cursor()
-        mci += u.MCPos
-        if u.Mic.MCC[mci] != nil {
-                u.Mic.MCC[mci].BR = !u.Mic.MCC[mci].BR
-        }
-        return nil
+	u.Mic.RegistersLock.Lock()
+	defer u.Mic.RegistersLock.Unlock()
+	_, mci := v.Cursor()
+	mci += u.MCPos
+	if u.Mic.MCC[mci] != nil {
+		u.Mic.MCC[mci].BR = !u.Mic.MCC[mci].BR
+	}
+	return nil
 }
 
 /* Util functions */

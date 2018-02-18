@@ -36,11 +36,8 @@ type mic1 struct {
 	MAR       uint16
 	MBR       uint16
 	ALU       *mic1Alu
-	MC        [256]uint32
 	MPC       uint8
-
-        // MC cache
-        MCC       [256]*instruction
+	MCC       [256]*instruction
 
 	RD int8
 	WR int8
@@ -74,6 +71,7 @@ type Symbol struct {
 func InitMic1() *mic1 {
 	m := &mic1{ALU: &mic1Alu{}, StateLock: &sync.Mutex{}, RegistersLock: &sync.Mutex{}, Cycles: 0, MemSymbols: make([]Symbol, 0)}
 	m.StateChange = sync.NewCond(m.StateLock)
+	m.DesiredState = HALT
 	m.Registers[REG_PC] = 0
 	m.Registers[REG_SP] = 4095
 	m.Registers[REG_0] = 0
@@ -87,15 +85,53 @@ func InitMic1() *mic1 {
 	return m
 }
 
+func (m *mic1) ZeroMem() {
+	for i := 0; i < len(m.Memory); i++ {
+		m.Memory[i] = 0
+	}
+}
+
+func (m *mic1) ZeroMC() {
+	for i := 0; i < len(m.MCC); i++ {
+		m.MCC[i] = nil
+	}
+}
+
+func (m *mic1) Reset() {
+	m.DesiredState = HALT
+	m.RegistersLock.Lock()
+	defer m.RegistersLock.Unlock()
+	m.Registers[REG_PC] = 0
+	m.Registers[REG_AC] = 0
+	m.Registers[REG_SP] = 4095
+	m.Registers[REG_IR] = 0
+	m.Registers[REG_TIR] = 0
+	m.Registers[REG_0] = 0
+	m.Registers[REG_1] = 1
+	m.Registers[REG_NEG1] = 0xFFFF
+	m.Registers[REG_AMASK] = 0x0FFF
+	m.Registers[REG_SMASK] = 0x00FF
+	m.Registers[REG_A] = 0
+	m.Registers[REG_B] = 0
+	m.Registers[REG_C] = 0
+	m.Registers[REG_D] = 0
+	m.Registers[REG_E] = 0
+	m.Registers[REG_F] = 0
+
+	m.MARS = 0xFFFF
+	m.MBR = 0
+	m.MPC = 0
+	m.Cycles = 0
+}
+
 func (m *mic1) AddMPCBR(br uint8) {
-        m.MPCBR = append(m.MPCBR, br)
+	m.MPCBR = append(m.MPCBR, br)
 }
 
 func (m *mic1) LoadMC(mc []uint32) {
 	for i, v := range mc {
-		m.MC[i] = v
-                ins := Unpack(v)
-                m.MCC[i] = &ins
+		ins := Unpack(v)
+		m.MCC[i] = &ins
 	}
 }
 
@@ -104,7 +140,6 @@ func (m *mic1) LoadMem(mem []uint16) {
 		m.Memory[i] = v
 	}
 }
-
 
 func (m *mic1) Run() {
 	if m.DesiredState == RUN {
@@ -216,7 +251,7 @@ func (m *mic1) Step() {
 		}
 	}
 	m.Cycles++
-        if m.MCC[m.MPC].BR {
+	if m.MCC[m.MPC].BR {
 		m.DesiredState = HALT
-        }
+	}
 }

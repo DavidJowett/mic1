@@ -18,7 +18,7 @@ package main
 
 import (
 	"flag"
-        "fmt"
+	"fmt"
 	"log"
 )
 
@@ -32,36 +32,57 @@ func main() {
 	var mem []uint16
 	var syms []Symbol
 	var err error
+	var mr func(mic *mic1) error
+	var mcr func(mic *mic1) error
 
 	mic := InitMic1()
 
 	flag.Parse()
 
 	if *mf != "" {
-		log.Println("Reading binary microcode file:", *mf)
+		fname := *mf
+		log.Println("Reading binary microcode file:", fname)
 		mc, err = LoadBinaryMCFile(*mf)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
 		log.Printf("Loaded %d microcode instructions", len(mc))
 		mic.LoadMC(mc)
+		mcr = func(mic *mic1) error {
+			mc, err := LoadBinaryMCFile(fname)
+			if err != nil {
+				return err
+			}
+			mic.LoadMC(mc)
+			return nil
+		}
 	} else if *msf != "" {
-		log.Println("Reading binary string microcode file:", *msf)
-		mc, err = LoadBinaryStringMCFile(*msf)
+		fname := *msf
+		log.Println("Reading binary string microcode file:", fname)
+		mc, err = LoadBinaryStringMCFile(fname)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
 		log.Printf("Loaded %d microcode instructions", len(mc))
 		mic.LoadMC(mc)
+		mcr = func(mic *mic1) error {
+			mc, err := LoadBinaryStringMCFile(fname)
+			if err != nil {
+				return err
+			}
+			mic.LoadMC(mc)
+			return nil
+		}
 	} else {
-                fmt.Println("Error: no microcode file given!")
-                flag.Usage()
+		fmt.Println("Error: no microcode file given!")
+		flag.Usage()
 		return
 	}
 
 	if *memf != "" {
-		log.Println("Reading binary memory file:", *memf)
-		mem, err = LoadBinaryMemFile(*memf)
+		fname := *memf
+		log.Println("Reading binary memory file:", fname)
+		mem, err = LoadBinaryMemFile(fname)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -70,9 +91,20 @@ func main() {
 		log.Printf("Loaded %d memory symbols", len(syms))
 		mic.LoadMem(mem)
 		mic.MemSymbols = syms
+		mr = func(mic *mic1) error {
+			mem, err := LoadBinaryMemFile(fname)
+			syms := make([]Symbol, 0, 0)
+			if err != nil {
+				return err
+			}
+			mic.LoadMem(mem)
+			mic.MemSymbols = syms
+			return nil
+		}
 	} else if *memsf != "" {
-		log.Println("Reading binary string memory file:", *memsf)
-		mem, syms, err = LoadBinaryStringMemFile(*memsf)
+		fname := *memsf
+		log.Println("Reading binary string memory file:", fname)
+		mem, syms, err = LoadBinaryStringMemFile(fname)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -80,6 +112,17 @@ func main() {
 		log.Printf("Loaded %d memory symbols", len(syms))
 		mic.LoadMem(mem)
 		mic.MemSymbols = syms
+		mr = func(mic *mic1) error {
+			mem, syms, err := LoadBinaryStringMemFile(fname)
+			if err != nil {
+				log.Print(err.Error())
+				return err
+			}
+			mic.LoadMem(mem)
+			mic.MemSymbols = syms
+
+			return nil
+		}
 	} else {
 		log.Println("no memory file given!")
 	}
@@ -87,6 +130,8 @@ func main() {
 	if err != nil {
 		log.Panicln(err)
 	}
+	g.MR = mr
+	g.MCR = mcr
 	err = g.Run()
 	if err != nil {
 		log.Panicln(err)
