@@ -14,13 +14,13 @@ A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go wit
 The MIC-1 Emulator supports loading both binary and binary string microcode and memory files.
 
 * -mc file
- * Loads the given binary microcode file
+  * Loads the given binary microcode file
 * -mcs file
- * Loads the given binary string microcode file
+  * Loads the given binary string microcode file
 * -m file
- * Loads the given binary memory file
+  * Loads the given binary memory file
 * -ms file 
- * Loads the given binary string memory file
+  * Loads the given binary string memory file
 
 ## Screenshots
 
@@ -66,6 +66,6 @@ Key Combination | Description
 
 ## Todo
 * Reset Key binding
- * Reloads the given Microcode file, and Memory file
+  * Reloads the given Microcode file, and Memory file
 * Better scrolling
 * Better colors?
