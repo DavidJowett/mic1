@@ -16,6 +16,7 @@ Todo
 ## Key Bindings
 ### Global
 Key Combination | Description
+---|---
 <kbd>q</kbd> | Quit
 <kbd>CTRL + c</kbd> | Quit
 <kbd>c</kbd> | Cycle frame focus forward direction
@@ -27,6 +28,7 @@ Key Combination | Description
 ### Symbols Frame
 
 Key Combination | Description
+---|---
 <kbd>j</kbd> | Scrolls down one symbol
 <kbd>k</kbd> | Scrolls up one symbol
 <kbd>ENTER</kbd> | Moves the memory frame to the symbol's location in memory
@@ -36,6 +38,7 @@ Key Combination | Description
 ### Memory Frame
 
 Key Combination | Description
+---|---
 <kbd>j</kbd> | Scrolls down by eight words
 <kbd>k</kbd> | Scrolls up by eight words
 <kbd>m</kbd> | Toggles the display mode between hexadecimal and decimal 
@@ -43,6 +46,7 @@ Key Combination | Description
 ### Microcode Frame
 
 Key Combination | Description
+---|---
 <kbd>j</kbd> | Scrolls down by one instruction
 <kbd>k</kbd> | Scrolls up by one instruction
 <kbd>b</kbd> | Toggles breakpoint on that instruction
