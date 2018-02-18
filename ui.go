@@ -66,6 +66,7 @@ func initGui(m *mic1) (*Ui, error) {
 		KeyBinding{"", 'r', gocui.ModNone, u.MicRun},
 		KeyBinding{"", 'h', gocui.ModNone, u.MicHalt},
 		KeyBinding{"", 'c', gocui.ModNone, u.CycleView},
+		KeyBinding{"", 'C', gocui.ModNone, u.ReverseCycleView},
 		KeyBinding{"symbols", 'j', gocui.ModNone, u.SymScrollDown},
 		KeyBinding{"symbols", 'k', gocui.ModNone, u.SymScrollUp},
 		KeyBinding{"symbols", 'g', gocui.ModNone, u.SymGoto},
@@ -323,6 +324,17 @@ func (u *Ui) CycleView(g *gocui.Gui, v *gocui.View) error {
 	FocusView(g, u.VCycle[u.CView])
 
 	return nil
+}
+
+func (u *Ui) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
+	DefocusView(g, u.VCycle[u.CView])
+        u.CView--
+        if u.CView < 0 {
+                u.CView = len(u.VCycle) - 1
+        }
+	FocusView(g, u.VCycle[u.CView])
+
+        return nil
 }
 
 func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
