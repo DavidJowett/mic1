@@ -33,10 +33,13 @@ type Ui struct {
 	Mic     *mic1
 	Gui     *gocui.Gui
 	MemAddr int
+        MemMin  int
 	MemHex  bool
 	SymPos  int
+        SymMin  int
 	SymHex  bool
 	MCPos   int
+        MCMin   int
 	VCycle  []*gocui.View
 	CView   int
 	/* human readable microcode */
@@ -58,10 +61,13 @@ func initGui(m *mic1) (*Ui, error) {
 	var err error
 	u := &Ui{Mic: m}
 	u.MemAddr = 0x0000
+        u.MemMin = 0x0000
 	u.MemHex = true
 	u.SymPos = 0
+        u.SymMin = 0
 	u.SymHex = false
 	u.MCPos = 0
+        u.MCMin = 0
 	u.VCycle = make([]*gocui.View, 0, 4)
 	u.CView = 1
 	u.MC = make([]string, 256, 256)
@@ -171,12 +177,12 @@ func (u *Ui) UpdateSymbolsView(g *gocui.Gui) error {
 	v.Clear()
 	_, maxY := v.Size()
 	if u.SymHex {
-		for i := 0; i < maxY && (i+u.SymPos) < len(u.Mic.MemSymbols); i++ {
-			fmt.Fprintf(v, "%-24s : %#04x\n", u.Mic.MemSymbols[i+u.SymPos].Name, u.Mic.MemSymbols[i+u.SymPos].Val)
+		for i := 0; i < maxY && (i+u.SymMin) < len(u.Mic.MemSymbols); i++ {
+			fmt.Fprintf(v, "%-24s : %#04x\n", u.Mic.MemSymbols[i+u.SymMin].Name, u.Mic.MemSymbols[i+u.SymMin].Val)
 		}
 	} else {
-		for i := 0; i < maxY && (i+u.SymPos) < len(u.Mic.MemSymbols); i++ {
-			fmt.Fprintf(v, "%-24s : %-6d\n", u.Mic.MemSymbols[i+u.SymPos].Name, u.Mic.MemSymbols[i+u.SymPos].Val)
+		for i := 0; i < maxY && (i+u.SymMin) < len(u.Mic.MemSymbols); i++ {
+			fmt.Fprintf(v, "%-24s : %-6d\n", u.Mic.MemSymbols[i+u.SymMin].Name, u.Mic.MemSymbols[i+u.SymMin].Val)
 		}
 	}
 
@@ -195,18 +201,18 @@ func (u *Ui) UpdateMicrocodeView(g *gocui.Gui) error {
 	_, maxY := v.Size()
 	var br rune
 	var cur rune
-	for i := 0; u.Mic.MCC[i+u.MCPos] != nil && i < maxY && (i+u.MCPos) < 256; i++ {
-		if i+u.MCPos == int(mpc) {
+	for i := 0; u.Mic.MCC[i+u.MCMin] != nil && i < maxY && (i+u.MCMin) < 256; i++ {
+		if i+u.MCMin == int(mpc) {
 			cur = '>'
 		} else {
 			cur = ' '
 		}
-		if u.Mic.MCC[i+u.MCPos].BR {
+		if u.Mic.MCC[i+u.MCMin].BR {
 			br = '*'
 		} else {
 			br = ' '
 		}
-		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i+u.MCPos, u.MC[i+u.MCPos])
+		fmt.Fprintf(v, "%c%c%3d: %s\n", cur, br, i+u.MCMin, u.MC[i+u.MCMin])
 	}
 	return nil
 }
@@ -221,18 +227,18 @@ func (u *Ui) UpdateMemoryView(g *gocui.Gui) error {
 	v.Clear()
 	_, maxY := v.Size()
 	if u.MemHex {
-		for i := 0; i < maxY && (i*8+int(u.MemAddr)) < 4096; i++ {
-			fmt.Fprintf(v, "%#04x: ", int(u.MemAddr)+(i*8))
+		for i := 0; i < maxY && (i*8+int(u.MemMin)) < 4096; i++ {
+			fmt.Fprintf(v, "%#04x: ", int(u.MemMin)+(i*8))
 			for j := 0; j < 8; j++ {
-				fmt.Fprintf(v, "%#04x ", u.Mic.Memory[int(u.MemAddr)+(i*8)+j])
+				fmt.Fprintf(v, "%#04x ", u.Mic.Memory[int(u.MemMin)+(i*8)+j])
 			}
 			fmt.Fprint(v, "\n")
 		}
 	} else {
-		for i := 0; i < maxY && (i*8+int(u.MemAddr)) < 4096; i++ {
-			fmt.Fprintf(v, "%6d: ", int(u.MemAddr)+(i*8))
+		for i := 0; i < maxY && (i*8+int(u.MemMin)) < 4096; i++ {
+			fmt.Fprintf(v, "%6d: ", int(u.MemMin)+(i*8))
 			for j := 0; j < 8; j++ {
-				fmt.Fprintf(v, "%6d ", u.Mic.Memory[int(u.MemAddr)+(i*8)+j])
+				fmt.Fprintf(v, "%6d ", u.Mic.Memory[int(u.MemMin)+(i*8)+j])
 			}
 			fmt.Fprint(v, "\n")
 		}
@@ -384,10 +390,15 @@ func (u *Ui) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
+        _, y := v.Size()
 	u.SymPos++
 	if u.SymPos >= len(u.Mic.MemSymbols) {
 		u.SymPos = len(u.Mic.MemSymbols) - 1
 	}
+        if u.SymPos >= u.SymMin + y {
+                u.SymMin++
+        }
+        v.SetCursor(0,u.SymPos - u.SymMin)
 	u.Gui.Update(u.UpdateSymbolsView)
 	return nil
 }
@@ -397,15 +408,24 @@ func (u *Ui) SymScrollUp(g *gocui.Gui, v *gocui.View) error {
 	if u.SymPos < 0 {
 		u.SymPos = 0
 	}
+        if u.SymPos < u.SymMin {
+                u.SymMin = u.SymPos
+        }
+        v.SetCursor(0,u.SymPos - u.SymMin)
 	u.Gui.Update(u.UpdateSymbolsView)
 	return nil
 }
 
 func (u *Ui) MemScrollDown(g *gocui.Gui, v *gocui.View) error {
+        _, y := v.Size()
 	u.MemAddr += 8
 	if u.MemAddr >= 4096 {
 		u.MemAddr = 4088
 	}
+        if (u.MemAddr / 8) >= (u.MemMin / 8) + y {
+                u.MemMin += 8
+        }
+        v.SetCursor(0, (u.MemAddr - u.MemMin) / 8)
 	u.Gui.Update(u.UpdateMemoryView)
 	return nil
 }
@@ -415,11 +435,16 @@ func (u *Ui) MemScrollUp(g *gocui.Gui, v *gocui.View) error {
 	if u.MemAddr < 0 {
 		u.MemAddr = 0
 	}
+        if u.MemAddr < u.MemMin {
+                u.MemMin = u.MemAddr
+        }
+        v.SetCursor(0, (u.MemAddr - u.MemMin) / 8)
 	u.Gui.Update(u.UpdateMemoryView)
 	return nil
 }
 
 func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
+        _, y := v.Size()
 	u.MCPos++
 	if u.Mic.MCC[u.MCPos] == nil {
 		u.MCPos--
@@ -427,6 +452,10 @@ func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
 	if u.MCPos > 255 {
 		u.MCPos = 255
 	}
+        if u.MCPos >= u.MCMin + y {
+                u.MCMin++
+        }
+        v.SetCursor(0,u.MCPos - u.MCMin)
 	u.Gui.Update(u.UpdateMicrocodeView)
 	return nil
 }
@@ -436,6 +465,10 @@ func (u *Ui) MicrocodeScrollUp(g *gocui.Gui, v *gocui.View) error {
 	if u.MCPos < 0 {
 		u.MCPos = 0
 	}
+        if u.MCPos < u.MCMin {
+                u.MCMin = u.MCPos
+        }
+        v.SetCursor(0,u.MCPos - u.MCMin)
 	u.Gui.Update(u.UpdateMicrocodeView)
 	return nil
 }
@@ -445,10 +478,16 @@ func (u *Ui) SymGoto(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
+	v2, err := g.View("memory")
+	if err != nil {
+		return err
+	}
 	_, symi := v.Cursor()
-	symi += u.SymPos
+	symi += u.SymMin
 	sym := u.Mic.MemSymbols[symi].Val
 	u.MemAddr = int(sym - (sym % 8))
+        u.MemMin = u.MemAddr
+        v2.SetCursor(0,0)
 	return nil
 }
 
