@@ -474,10 +474,6 @@ func (u *Ui) MicrocodeScrollUp(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) SymGoto(g *gocui.Gui, v *gocui.View) error {
-	v, err := g.View("symbols")
-	if err != nil {
-		return err
-	}
 	v2, err := g.View("memory")
 	if err != nil {
 		return err
@@ -502,10 +498,6 @@ func (u *Ui) SymModeToggle(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (u *Ui) MicrocodeToggleBreakPoint(g *gocui.Gui, v *gocui.View) error {
-	v, err := g.View("microcode")
-	if err != nil {
-		return err
-	}
 	u.Mic.RegistersLock.Lock()
 	defer u.Mic.RegistersLock.Unlock()
 	_, mci := v.Cursor()
