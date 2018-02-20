@@ -66,5 +66,4 @@ Key Combination | Description
 <kbd>b</kbd> | Toggles breakpoint on that instruction
 
 ## Todo
-* Better scrolling
-* Better colors
+* UART
