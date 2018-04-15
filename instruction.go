@@ -53,6 +53,7 @@ func Unpack(ins uint32) instruction {
 	ret.B = int8((ins & 0x0000F000) >> 12)
 	ret.A = int8((ins & 0x00000F00) >> 8)
 	ret.ADDR = uint8(ins & 0x000000FF)
+	ret.BR = false
 
 	return ret
 }

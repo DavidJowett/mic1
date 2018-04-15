@@ -1,5 +1,5 @@
 # MIC-1 Emulator
-A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go with a terminal UI.
+A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go with a both a command line UI and a terminal UI
 
 ## Features
 
@@ -8,6 +8,7 @@ A simple [Mic-1 Emulator](https://en.wikipedia.org/wiki/MIC-1) written in Go wit
 * Register inspector
 * Microcode inspector
 * Microcode breakpoints
+* Memory Mapped IO (Mostly done)
 
 ## Usage
 
@@ -21,9 +22,10 @@ The MIC-1 Emulator supports loading both binary and binary string microcode and 
   * Loads the given binary memory file
 * -ms file 
   * Loads the given binary string memory file
-
+* -u
+  * Uses the terminal UI instead of the command line UI
 ## Screenshots
-
+### Terminal UI
 ![Screenshot](img/main.png?raw=true)
 
 ## Key Bindings
@@ -66,4 +68,7 @@ Key Combination | Description
 <kbd>b</kbd> | Toggles breakpoint on that instruction
 
 ## Todo
-* UART
+* Memory Mapped IO
+ * Add TUI support
+ * Currently only supports IO in CLI mode
+ * Interrupts

@@ -29,17 +29,17 @@ type KeyBinding struct {
 	Handler func(*gocui.Gui, *gocui.View) error
 }
 
-type Ui struct {
+type TUI struct {
 	Mic     *mic1
 	Gui     *gocui.Gui
 	MemAddr int
-        MemMin  int
+	MemMin  int
 	MemHex  bool
 	SymPos  int
-        SymMin  int
+	SymMin  int
 	SymHex  bool
 	MCPos   int
-        MCMin   int
+	MCMin   int
 	VCycle  []*gocui.View
 	CView   int
 	/* human readable microcode */
@@ -49,7 +49,7 @@ type Ui struct {
 	MCR func(m *mic1) error
 }
 
-func (u *Ui) Run() error {
+func (u *TUI) Run() error {
 	defer u.Gui.Close()
 	if err := u.Gui.MainLoop(); err != nil && err != gocui.ErrQuit {
 		return err
@@ -57,17 +57,17 @@ func (u *Ui) Run() error {
 	return nil
 }
 
-func initGui(m *mic1) (*Ui, error) {
+func initGui(m *mic1) (*TUI, error) {
 	var err error
-	u := &Ui{Mic: m}
+	u := &TUI{Mic: m}
 	u.MemAddr = 0x0000
-        u.MemMin = 0x0000
+	u.MemMin = 0x0000
 	u.MemHex = true
 	u.SymPos = 0
-        u.SymMin = 0
+	u.SymMin = 0
 	u.SymHex = false
 	u.MCPos = 0
-        u.MCMin = 0
+	u.MCMin = 0
 	u.VCycle = make([]*gocui.View, 0, 4)
 	u.CView = 1
 	u.MC = make([]string, 256, 256)
@@ -121,7 +121,7 @@ func initGui(m *mic1) (*Ui, error) {
 	return u, nil
 }
 
-func (u *Ui) UpdateViews(g *gocui.Gui) error {
+func (u *TUI) UpdateViews(g *gocui.Gui) error {
 	/* Registers View */
 	err := u.UpdateRegistersView(g)
 	if err != nil {
@@ -145,7 +145,7 @@ func (u *Ui) UpdateViews(g *gocui.Gui) error {
 	return nil
 }
 
-func (u *Ui) UpdateRegistersView(g *gocui.Gui) error {
+func (u *TUI) UpdateRegistersView(g *gocui.Gui) error {
 	u.Mic.RegistersLock.Lock()
 	defer u.Mic.RegistersLock.Unlock()
 	v, err := g.View("registers")
@@ -169,7 +169,7 @@ func (u *Ui) UpdateRegistersView(g *gocui.Gui) error {
 	return nil
 }
 
-func (u *Ui) UpdateSymbolsView(g *gocui.Gui) error {
+func (u *TUI) UpdateSymbolsView(g *gocui.Gui) error {
 	v, err := g.View("symbols")
 	if err != nil {
 		return err
@@ -189,7 +189,7 @@ func (u *Ui) UpdateSymbolsView(g *gocui.Gui) error {
 	return nil
 }
 
-func (u *Ui) UpdateMicrocodeView(g *gocui.Gui) error {
+func (u *TUI) UpdateMicrocodeView(g *gocui.Gui) error {
 	v, err := g.View("microcode")
 	if err != nil {
 		return err
@@ -217,7 +217,7 @@ func (u *Ui) UpdateMicrocodeView(g *gocui.Gui) error {
 	return nil
 }
 
-func (u *Ui) UpdateMemoryView(g *gocui.Gui) error {
+func (u *TUI) UpdateMemoryView(g *gocui.Gui) error {
 	u.Mic.RegistersLock.Lock()
 	defer u.Mic.RegistersLock.Unlock()
 	v, err := g.View("memory")
@@ -248,7 +248,7 @@ func (u *Ui) UpdateMemoryView(g *gocui.Gui) error {
 	return nil
 }
 
-func (u *Ui) Layout(g *gocui.Gui) error {
+func (u *TUI) Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	maxX--
 	maxY--
@@ -313,18 +313,18 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-func (u *Ui) MicStep(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MicStep(g *gocui.Gui, v *gocui.View) error {
 	u.Mic.Step()
-	g.Update(u.UpdateViews)
+	//g.Update(u.UpdateViews)
 	return nil
 }
 
-func (u *Ui) MicUpdate(g *gocui.Gui, v *gocui.View) error {
-	g.Update(u.UpdateViews)
+func (u *TUI) MicUpdate(g *gocui.Gui, v *gocui.View) error {
+	//g.Update(u.UpdateViews)
 	return nil
 }
 
-func (u *Ui) MicRun(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MicRun(g *gocui.Gui, v *gocui.View) error {
 	u.Mic.DesiredState = RUN
 	u.Gui.Update(u.UpdateViews)
 	go u.Mic.Run()
@@ -332,16 +332,17 @@ func (u *Ui) MicRun(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (u *Ui) MicHalt(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MicHalt(g *gocui.Gui, v *gocui.View) error {
 	u.Mic.DesiredState = HALT
 	return nil
 }
 
-func (u *Ui) MicReset(g *gocui.Gui, v *gocui.View) error {
-	u.Mic.StateChange.L.Lock()
-	if u.Mic.State != HALT {
-		u.Mic.DesiredState = HALT
-		u.Mic.StateChange.Wait()
+func (u *TUI) MicReset(g *gocui.Gui, v *gocui.View) error {
+	u.Mic.DesiredState = HALT
+	for newState := range u.Mic.StateChanges {
+		if newState == HALT {
+			break
+		}
 	}
 	u.Mic.Reset()
 	u.Mic.ZeroMem()
@@ -356,21 +357,19 @@ func (u *Ui) MicReset(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 	u.Gui.Update(u.UpdateViews)
-	u.Mic.StateChange.L.Unlock()
 
 	return nil
 }
 
-func (u *Ui) MicWatcher() {
-	for {
-		u.Mic.StateChange.L.Lock()
-		u.Mic.StateChange.Wait()
-		u.Gui.Update(u.UpdateViews)
-		u.Mic.StateChange.L.Unlock()
+func (u *TUI) MicWatcher() {
+	for newState := range u.Mic.StateChanges {
+		if newState == HALT {
+			u.Gui.Update(u.UpdateViews)
+		}
 	}
 }
 
-func (u *Ui) CycleView(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) CycleView(g *gocui.Gui, v *gocui.View) error {
 	DefocusView(g, u.VCycle[u.CView])
 	u.CView = (u.CView + 1) % len(u.VCycle)
 	FocusView(g, u.VCycle[u.CView])
@@ -378,7 +377,7 @@ func (u *Ui) CycleView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (u *Ui) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
 	DefocusView(g, u.VCycle[u.CView])
 	u.CView--
 	if u.CView < 0 {
@@ -389,62 +388,62 @@ func (u *Ui) ReverseCycleView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func (u *Ui) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
-        _, y := v.Size()
+func (u *TUI) SymScrollDown(g *gocui.Gui, v *gocui.View) error {
+	_, y := v.Size()
 	u.SymPos++
 	if u.SymPos >= len(u.Mic.MemSymbols) {
 		u.SymPos = len(u.Mic.MemSymbols) - 1
 	}
-        if u.SymPos >= u.SymMin + y {
-                u.SymMin++
-        }
-        v.SetCursor(0,u.SymPos - u.SymMin)
+	if u.SymPos >= u.SymMin+y {
+		u.SymMin++
+	}
+	v.SetCursor(0, u.SymPos-u.SymMin)
 	u.Gui.Update(u.UpdateSymbolsView)
 	return nil
 }
 
-func (u *Ui) SymScrollUp(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) SymScrollUp(g *gocui.Gui, v *gocui.View) error {
 	u.SymPos--
 	if u.SymPos < 0 {
 		u.SymPos = 0
 	}
-        if u.SymPos < u.SymMin {
-                u.SymMin = u.SymPos
-        }
-        v.SetCursor(0,u.SymPos - u.SymMin)
+	if u.SymPos < u.SymMin {
+		u.SymMin = u.SymPos
+	}
+	v.SetCursor(0, u.SymPos-u.SymMin)
 	u.Gui.Update(u.UpdateSymbolsView)
 	return nil
 }
 
-func (u *Ui) MemScrollDown(g *gocui.Gui, v *gocui.View) error {
-        _, y := v.Size()
+func (u *TUI) MemScrollDown(g *gocui.Gui, v *gocui.View) error {
+	_, y := v.Size()
 	u.MemAddr += 8
 	if u.MemAddr >= 4096 {
 		u.MemAddr = 4088
 	}
-        if (u.MemAddr / 8) >= (u.MemMin / 8) + y {
-                u.MemMin += 8
-        }
-        v.SetCursor(0, (u.MemAddr - u.MemMin) / 8)
+	if (u.MemAddr / 8) >= (u.MemMin/8)+y {
+		u.MemMin += 8
+	}
+	v.SetCursor(0, (u.MemAddr-u.MemMin)/8)
 	u.Gui.Update(u.UpdateMemoryView)
 	return nil
 }
 
-func (u *Ui) MemScrollUp(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MemScrollUp(g *gocui.Gui, v *gocui.View) error {
 	u.MemAddr -= 8
 	if u.MemAddr < 0 {
 		u.MemAddr = 0
 	}
-        if u.MemAddr < u.MemMin {
-                u.MemMin = u.MemAddr
-        }
-        v.SetCursor(0, (u.MemAddr - u.MemMin) / 8)
+	if u.MemAddr < u.MemMin {
+		u.MemMin = u.MemAddr
+	}
+	v.SetCursor(0, (u.MemAddr-u.MemMin)/8)
 	u.Gui.Update(u.UpdateMemoryView)
 	return nil
 }
 
-func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
-        _, y := v.Size()
+func (u *TUI) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
+	_, y := v.Size()
 	u.MCPos++
 	if u.Mic.MCC[u.MCPos] == nil {
 		u.MCPos--
@@ -452,28 +451,28 @@ func (u *Ui) MicrocodeScrollDown(g *gocui.Gui, v *gocui.View) error {
 	if u.MCPos > 255 {
 		u.MCPos = 255
 	}
-        if u.MCPos >= u.MCMin + y {
-                u.MCMin++
-        }
-        v.SetCursor(0,u.MCPos - u.MCMin)
+	if u.MCPos >= u.MCMin+y {
+		u.MCMin++
+	}
+	v.SetCursor(0, u.MCPos-u.MCMin)
 	u.Gui.Update(u.UpdateMicrocodeView)
 	return nil
 }
 
-func (u *Ui) MicrocodeScrollUp(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MicrocodeScrollUp(g *gocui.Gui, v *gocui.View) error {
 	u.MCPos--
 	if u.MCPos < 0 {
 		u.MCPos = 0
 	}
-        if u.MCPos < u.MCMin {
-                u.MCMin = u.MCPos
-        }
-        v.SetCursor(0,u.MCPos - u.MCMin)
+	if u.MCPos < u.MCMin {
+		u.MCMin = u.MCPos
+	}
+	v.SetCursor(0, u.MCPos-u.MCMin)
 	u.Gui.Update(u.UpdateMicrocodeView)
 	return nil
 }
 
-func (u *Ui) SymGoto(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) SymGoto(g *gocui.Gui, v *gocui.View) error {
 	v2, err := g.View("memory")
 	if err != nil {
 		return err
@@ -482,26 +481,26 @@ func (u *Ui) SymGoto(g *gocui.Gui, v *gocui.View) error {
 	symi += u.SymMin
 	sym := u.Mic.MemSymbols[symi].Val
 	u.MemAddr = int(sym - (sym % 8))
-        u.MemMin = u.MemAddr
-        v2.SetCursor(0,0)
+	u.MemMin = u.MemAddr
+	v2.SetCursor(0, 0)
 	return nil
 }
 
-func (u *Ui) MemModeToggle(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MemModeToggle(g *gocui.Gui, v *gocui.View) error {
 	u.MemHex = !u.MemHex
 	return nil
 }
 
-func (u *Ui) SymModeToggle(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) SymModeToggle(g *gocui.Gui, v *gocui.View) error {
 	u.SymHex = !u.SymHex
 	return nil
 }
 
-func (u *Ui) MicrocodeToggleBreakPoint(g *gocui.Gui, v *gocui.View) error {
+func (u *TUI) MicrocodeToggleBreakPoint(g *gocui.Gui, v *gocui.View) error {
 	u.Mic.RegistersLock.Lock()
 	defer u.Mic.RegistersLock.Unlock()
 	_, mci := v.Cursor()
-	mci += u.MCPos
+	mci += u.MCMin
 	if u.Mic.MCC[mci] != nil {
 		u.Mic.MCC[mci].BR = !u.Mic.MCC[mci].BR
 	}

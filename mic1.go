@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -42,9 +43,9 @@ type mic1 struct {
 	RD int8
 	WR int8
 
-	// MBRS staging
+	/* MBRS staging */
 	MBRS uint16
-	// MAR staging
+	/* MAR staging */
 	MARS uint16
 
 	State        int8
@@ -56,9 +57,19 @@ type mic1 struct {
 	StateLock     *sync.Mutex
 	RegistersLock *sync.Mutex
 
-	StateChange *sync.Cond
+	/* Output state changes on this channel */
+	StateChanges chan int
 
-	// Breakpoints for PC and MPC
+	/* Serial Output channel */
+	Output chan string
+	/* Serial Input Channel */
+	Input chan string
+
+	/* RCRV and XMTR registers */
+	RCRV uint16
+	XMTR uint16
+
+	/* Breakpoints for PC and MPC */
 	MPCBR []uint8
 	PCBR  []uint16
 }
@@ -70,10 +81,9 @@ type Symbol struct {
 
 func InitMic1() *mic1 {
 	m := &mic1{ALU: &mic1Alu{}, StateLock: &sync.Mutex{}, RegistersLock: &sync.Mutex{}, Cycles: 0, MemSymbols: make([]Symbol, 0)}
-	m.StateChange = sync.NewCond(m.StateLock)
 	m.DesiredState = HALT
 	m.Registers[REG_PC] = 0
-	m.Registers[REG_SP] = 4095
+	m.Registers[REG_SP] = 4091
 	m.Registers[REG_0] = 0
 	m.Registers[REG_1] = 1
 	m.Registers[REG_NEG1] = 0xFFFF
@@ -81,6 +91,13 @@ func InitMic1() *mic1 {
 	m.Registers[REG_SMASK] = 0x00FF
 
 	m.MARS = 0xFFFF
+
+	/* State change channel */
+	m.StateChanges = make(chan int)
+
+	/* Setup the input and output channels */
+	m.Output = make(chan string, 100)
+	m.Input = make(chan string, 100)
 
 	return m
 }
@@ -143,22 +160,16 @@ func (m *mic1) LoadMem(mem []uint16) {
 
 func (m *mic1) Run() {
 	if m.DesiredState == RUN {
-		m.StateChange.L.Lock()
 		m.State = RUN
-		m.StateChange.Broadcast()
-		m.StateChange.L.Unlock()
+		m.StateChanges <- RUN
 	}
 	for {
 		// check if we should run
-		shouldRun := m.DesiredState
-		if shouldRun == RUN {
+		if m.DesiredState == RUN {
 			m.Step()
 		} else {
-			m.StateChange.L.Lock()
 			m.State = HALT
-			m.StateChange.Broadcast()
-			m.StateChange.L.Unlock()
-			m.StateChange.Broadcast()
+			m.StateChanges <- HALT
 			break
 		}
 	}
@@ -166,13 +177,13 @@ func (m *mic1) Run() {
 
 /* Executes one microcode cycle */
 func (m *mic1) Step() {
-	//log.Printf("Read MC instruction at %d", m.MPC)
 	m.RegistersLock.Lock()
 	defer m.RegistersLock.Unlock()
 	ins := m.MCC[m.MPC]
-	//log.Printf("%d, %d", ins.RD, ins.WR)
-	//ins.RD = 1
-	//ins.WR = 1
+	if ins == nil {
+		emsg := fmt.Sprintf("Error: undefined microcode instruction at address: %d\n", m.MPC)
+		panic(emsg)
+	}
 	// Set ALU's B input
 	m.ALU.B = m.Registers[ins.B]
 	// Set ALU's A input
@@ -224,13 +235,25 @@ func (m *mic1) Step() {
 		if m.MARS != 0xFFFF {
 			// Cycle 2
 			// check if there is an address in the MAR staging
-			//log.Printf("RD C2 MARS: %d", m.MARS)
-			m.MBR = m.Memory[m.MARS]
+			switch m.MARS {
+			case 4092:
+				if m.RCRV&10 == 10 {
+					m.RCRV = 9
+				}
+				m.MBR = m.Memory[4092]
+			case 4093:
+				m.MBR = m.RCRV
+			case 4094:
+				m.MBR = m.Memory[4094]
+			case 4095:
+				m.MBR = m.XMTR
+			default:
+				m.MBR = m.Memory[m.MARS]
+			}
 			m.MARS = 0xFFFF
 		} else {
 			// Cycle 1
 			// set MAR staging to address to be loaded on cycle 2
-			//log.Printf("RD C1")
 			// MAR ignores the upper 4 bits
 			m.MARS = m.MAR & 0x0FFF
 		}
@@ -239,8 +262,36 @@ func (m *mic1) Step() {
 		if m.MARS != 0xFFFF {
 			// Cycle 2
 			// write the value in MBR staging to memory
-			//log.Printf("WR C2 MARS: %d", m.MARS)
-			m.Memory[m.MARS] = m.MBRS
+
+			// check for memory mapped IO
+			switch m.MARS {
+			case 4092:
+				// writing the RCRV location in memory
+				m.Memory[m.MARS] = m.MBRS
+			case 4093:
+				// writing to the RCRV status register
+				if m.MBRS == 8 {
+					// Enable the receiver
+					m.RCRV = 9
+				}
+			case 4094:
+				// writing to the XMTR location in memory
+				m.Memory[m.MARS] = m.MBRS
+				if m.XMTR&8 != 0 {
+					// send the character into the output channel
+					m.Output <- string(rune(m.MBRS & 0xFF))
+					m.XMTR = 10
+				}
+			case 4095:
+				// writing to the XMTR status register
+				if m.MBRS == 8 {
+					// Enable the transmitter
+					m.XMTR = 10
+				}
+
+			default:
+				m.Memory[m.MARS] = m.MBRS
+			}
 			m.MARS = 0xFFFF
 		} else {
 			// Cycle 1
@@ -251,7 +302,15 @@ func (m *mic1) Step() {
 		}
 	}
 	m.Cycles++
-	if m.MCC[m.MPC].BR {
+	if m.MCC[m.MPC] != nil && m.MCC[m.MPC].BR {
 		m.DesiredState = HALT
+	}
+	if m.RCRV&9 == 9 {
+		select {
+		case in := <-m.Input:
+			m.Memory[4092] = uint16(in[0])
+			m.RCRV = 10
+		default:
+		}
 	}
 }
